@@ -18,7 +18,8 @@ from auto_round.data_type import get_quant_func
 from .utils import (
     check_to_quantized,
     get_scale_shape,
-    set_module
+    set_module,
+    logger,
 )
 
 
@@ -197,7 +198,7 @@ class WrapperLinear(torch.nn.Module):
             zp = zp.reshape(qdq_weight.shape[0], -1)
         self.orig_layer.weight.data.copy_(qdq_weight)
         self.orig_layer.weight.grad = None
-        self.orig_layer.scale = scale.to("cpu")
+        self.orig_layer.scale = torch.nn.Parameter(scale.to("cpu"), requires_grad=False)
         self.orig_layer.zp = zp.to("cpu") if zp is not None else None
         self.orig_layer.q_scale_thresh = self.q_scale_thresh
         self.orig_layer.data_type = self.data_type
@@ -409,9 +410,9 @@ def wrapper_block(block, enable_minmax_tuning, device='cpu'):
     unquantized_layers = []
     for n, m in block.named_modules():
         if isinstance(m, torch.nn.Linear):
-            if not check_to_quantized(m):
-                unquantized_layers.append(n)
-                continue
+            # if not check_to_quantized(m):
+            #     unquantized_layers.append(n)
+            #     continue
             new_m = WrapperLinear(m, enable_minmax_tuning=enable_minmax_tuning, device=device)
             set_module(block, n, new_m)
             quantized_layers.append(n)
